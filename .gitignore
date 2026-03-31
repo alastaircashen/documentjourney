@@ -1,0 +1,7 @@
+node_modules/
+lib/
+dist/
+temp/
+*.sppkg
+.yo-rc.json
+sharepoint/solution/debug/

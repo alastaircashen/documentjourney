@@ -1,0 +1,36 @@
+{
+  "name": "document-journey",
+  "version": "1.0.0",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": {
+    "node": ">=18.17.1 <19.0.0"
+  },
+  "scripts": {
+    "build": "gulp bundle",
+    "clean": "gulp clean",
+    "test": "jest --passWithNoTests",
+    "serve": "gulp serve"
+  },
+  "dependencies": {
+    "@fluentui/react-components": "^9.46.0",
+    "@fluentui/react-icons": "^2.0.217",
+    "@fluentui/react-migration-v8-v9": "^9.5.0",
+    "@microsoft/sp-core-library": "1.20.0",
+    "@microsoft/sp-listview-extensibility": "1.20.0",
+    "@microsoft/sp-webpart-base": "1.20.0",
+    "@pnp/logging": "^4.4.0",
+    "@pnp/sp": "^4.4.0",
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "tslib": "2.3.1"
+  },
+  "devDependencies": {
+    "@microsoft/sp-build-web": "1.20.0",
+    "@microsoft/sp-module-interfaces": "1.20.0",
+    "@types/react": "17.0.45",
+    "@types/react-dom": "17.0.17",
+    "gulp": "4.0.2",
+    "typescript": "4.7.4"
+  }
+}

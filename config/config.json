@@ -1,0 +1,24 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "document-journey-command-set": {
+      "components": [
+        {
+          "entrypoint": "./lib/extensions/documentJourney/DocumentJourneyCommandSet.js",
+          "manifest": "./src/extensions/documentJourney/DocumentJourneyCommandSet.manifest.json"
+        }
+      ]
+    },
+    "my-journeys-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/myJourneys/MyJourneysWebPart.js",
+          "manifest": "./src/webparts/myJourneys/MyJourneysWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {}
+}
