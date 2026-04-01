@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Elements xmlns="http://schemas.microsoft.com/sharepoint/">
+    <CustomAction
+        Title="DocumentJourney"
+        RegistrationId="101"
+        RegistrationType="List"
+        Location="ClientSideExtension.ListViewCommandSet.CommandBar"
+        ClientSideComponentId="d480eea3-7c0b-4a49-a5da-e055291ae4ca"
+        ClientSideComponentProperties="{}">
+    </CustomAction>
+    <CustomAction
+        Title="DocumentJourneyContext"
+        RegistrationId="101"
+        RegistrationType="List"
+        Location="ClientSideExtension.ListViewCommandSet.ContextMenu"
+        ClientSideComponentId="d480eea3-7c0b-4a49-a5da-e055291ae4ca"
+        ClientSideComponentProperties="{}">
+    </CustomAction>
+</Elements>

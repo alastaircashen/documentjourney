@@ -10,6 +10,14 @@
         }
       ]
     },
+    "journey-status-field-customizer": {
+      "components": [
+        {
+          "entrypoint": "./lib/extensions/journeyStatus/JourneyStatusFieldCustomizer.js",
+          "manifest": "./src/extensions/journeyStatus/JourneyStatusFieldCustomizer.manifest.json"
+        }
+      ]
+    },
     "my-journeys-web-part": {
       "components": [
         {
@@ -20,5 +28,9 @@
     }
   },
   "externals": {},
-  "localizedResources": {}
+  "localizedResources": {
+    "DocumentJourneyCommandSetStrings": "lib/extensions/documentJourney/loc/{locale}.js",
+    "MyJourneysWebPartStrings": "lib/webparts/myJourneys/loc/{locale}.js",
+    "ControlStrings": "node_modules/@pnp/spfx-controls-react/lib/loc/{locale}.js"
+  }
 }

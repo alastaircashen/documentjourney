@@ -1,4 +1,4 @@
-import { StepType, CompletionRule } from '../constants';
+import { CompletionRule, NotifyWho, StepNotify, StepType } from '../constants';
 
 export interface IStep {
   Id: number;
@@ -6,9 +6,14 @@ export interface IStep {
   JourneyId: number;
   StepOrder: number;
   StepType: StepType;
-  AssignedTo: string[];
+  AssignedToId: number[];
+  AssignToGroup: string;
   CompletionRule: CompletionRule;
   RequireComments: boolean;
-  AllowReject: boolean;
   DueDays: number;
+  AllowReject: boolean;
+  AllowDelegate: boolean;
+  Message: string;
+  NotifyWho: NotifyWho;
+  StepNotify: StepNotify;
 }

@@ -1,16 +1,25 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/command-set-extension-manifest.schema.json",
-  "id": "a1b2c3d4-1111-2222-3333-444455556666",
+
+  "id": "d480eea3-7c0b-4a49-a5da-e055291ae4ca",
   "alias": "DocumentJourneyCommandSet",
   "componentType": "Extension",
   "extensionType": "ListViewCommandSet",
+
   "version": "*",
   "manifestVersion": 2,
+
   "requiresCustomScript": false,
+
   "items": {
     "START_JOURNEY": {
-      "title": { "default": "Start a Journey" },
-      "iconImageUrl": "",
+      "title": { "default": "Start Journey" },
+      "iconImageUrl": "./assets/journey-icon.svg",
+      "type": "command"
+    },
+    "VIEW_JOURNEY": {
+      "title": { "default": "View Journey" },
+      "iconImageUrl": "./assets/journey-icon.svg",
       "type": "command"
     }
   }

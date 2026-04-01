@@ -2,30 +2,28 @@ import * as React from 'react';
 import {
   TabList,
   Tab,
-  SelectTabEvent,
   SelectTabData,
-  Badge,
+  SelectTabEvent,
   makeStyles,
   Spinner,
+  Title3,
+  SearchBox,
+  Dropdown,
+  Option,
+  Button,
+  Text,
+  tokens
 } from '@fluentui/react-components';
-import { SPFI } from '@pnp/sp';
-import { FluentThemeProvider } from '../../../extensions/documentJourney/components/FluentThemeProvider';
+import { ArrowClockwiseRegular } from '@fluentui/react-icons';
 import { WaitingOnMe } from './WaitingOnMe';
 import { IStarted } from './IStarted';
 import { AllActive } from './AllActive';
-import { JourneyService } from '../../../services/JourneyService';
-import { TenantPropertyService } from '../../../services/TenantPropertyService';
-import { SchemaService } from '../../../services/SchemaService';
-import { IStepHistory } from '../../../models/IStepHistory';
-import { IHistory } from '../../../models/IHistory';
+import { JourneyStatus } from '../../../constants';
+import { useDocumentJourney } from '../../../common/DocumentJourneyContext';
 
 export interface IMyJourneysProps {
-  sp: SPFI;
-  spfxContext: any;
-  currentUserEmail: string;
+  // Props now come from context
 }
-
-type TabValue = 'waiting' | 'started' | 'active';
 
 const useStyles = makeStyles({
   container: {
@@ -34,90 +32,152 @@ const useStyles = makeStyles({
     gap: '16px',
     padding: '16px',
   },
-  tabBadge: {
-    marginLeft: '6px',
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  toolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
+  },
+  search: {
+    minWidth: '200px',
+    maxWidth: '300px',
+  },
+  refreshGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginLeft: 'auto',
+  },
+  lastUpdated: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: '12px',
+  },
+  tabContent: {
+    paddingTop: '8px',
   },
 });
 
-export const MyJourneys: React.FC<IMyJourneysProps> = ({ sp, spfxContext, currentUserEmail }) => {
+export const MyJourneys: React.FC<IMyJourneysProps> = () => {
   const styles = useStyles();
-  const [selectedTab, setSelectedTab] = React.useState<TabValue>('waiting');
+  const { sp } = useDocumentJourney();
+  const [selectedTab, setSelectedTab] = React.useState<string>('waiting');
+  const [userId, setUserId] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(true);
-  const [pendingSteps, setPendingSteps] = React.useState<(IStepHistory & { DocumentName: string; DocumentUrl: string; JourneyTitle: string })[]>([]);
-  const [myJourneys, setMyJourneys] = React.useState<IHistory[]>([]);
-  const [allActive, setAllActive] = React.useState<IHistory[]>([]);
-  const [isAdmin] = React.useState(false); // TODO: check site admin permissions
+  const [isSiteAdmin, setIsSiteAdmin] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<string>(JourneyStatus.Active);
+  const [refreshKey, setRefreshKey] = React.useState(0);
+  const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date());
 
-  const tenantPropertyService = React.useMemo(() => new TenantPropertyService(sp), [sp]);
-  const journeyService = React.useMemo(() => new JourneyService(sp, tenantPropertyService), [sp, tenantPropertyService]);
-  const schemaService = React.useMemo(() => new SchemaService(sp), [sp]);
-
-  const loadData = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      await schemaService.ensureSchema();
-      const [pending, started, active] = await Promise.all([
-        journeyService.getMyPendingSteps(currentUserEmail),
-        journeyService.getJourneysIStarted(currentUserEmail),
-        journeyService.getAllActiveJourneys(),
-      ]);
-      setPendingSteps(pending);
-      setMyJourneys(started);
-      setAllActive(active);
-    } finally {
+  React.useEffect(() => {
+    const init = async (): Promise<void> => {
+      try {
+        const user = await sp.web.currentUser();
+        setUserId(user.Id);
+        setIsSiteAdmin(user.IsSiteAdmin);
+      } catch {
+        // Fallback
+      }
       setLoading(false);
-    }
-  }, [journeyService, schemaService, currentUserEmail]);
+    };
+    init().catch(() => {});
+  }, []);
 
-  React.useEffect(() => { loadData(); }, [loadData]);
-
-  const handleTabSelect = (_: SelectTabEvent, data: SelectTabData): void => {
-    setSelectedTab(data.value as TabValue);
+  const handleTabSelect = (_event: SelectTabEvent, data: SelectTabData): void => {
+    setSelectedTab(data.value as string);
   };
 
-  return (
-    <FluentThemeProvider>
-      <div className={styles.container}>
-        <TabList selectedValue={selectedTab} onTabSelect={handleTabSelect}>
-          <Tab value="waiting">
-            Waiting on me
-            {pendingSteps.length > 0 && (
-              <Badge className={styles.tabBadge} size="small" color="danger">
-                {pendingSteps.length}
-              </Badge>
-            )}
-          </Tab>
-          <Tab value="started">I started</Tab>
-          {isAdmin && <Tab value="active">All active</Tab>}
-        </TabList>
+  const handleRefresh = (): void => {
+    setRefreshKey(prev => prev + 1);
+    setLastUpdated(new Date());
+  };
 
-        {loading ? (
-          <Spinner label="Loading journeys..." />
-        ) : (
-          <>
-            {selectedTab === 'waiting' && (
-              <WaitingOnMe
-                steps={pendingSteps}
-                sp={sp}
-                currentUserEmail={currentUserEmail}
-                onRefresh={loadData}
-              />
-            )}
-            {selectedTab === 'started' && (
-              <IStarted
-                journeys={myJourneys}
-                sp={sp}
-              />
-            )}
-            {selectedTab === 'active' && (
-              <AllActive
-                journeys={allActive}
-                sp={sp}
-              />
-            )}
-          </>
+  const getTimeSince = (): string => {
+    const seconds = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes} min ago`;
+  };
+
+  const showStatusFilter = selectedTab === 'started' || selectedTab === 'all';
+
+  if (loading) {
+    return <Spinner label="Loading..." />;
+  }
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <Title3>My Journeys</Title3>
+      </div>
+
+      <div className={styles.toolbar}>
+        <SearchBox
+          className={styles.search}
+          placeholder="Search by document or journey name..."
+          value={searchQuery}
+          onChange={(_e, data) => setSearchQuery(data.value)}
+        />
+        {showStatusFilter && (
+          <Dropdown
+            placeholder="Status"
+            value={statusFilter}
+            selectedOptions={[statusFilter]}
+            onOptionSelect={(_e, data) => setStatusFilter(data.optionValue || JourneyStatus.Active)}
+            style={{ minWidth: '140px' }}
+          >
+            <Option value={JourneyStatus.Active}>Active</Option>
+            <Option value={JourneyStatus.Completed}>Completed</Option>
+            <Option value={JourneyStatus.Rejected}>Rejected</Option>
+            <Option value={JourneyStatus.Cancelled}>Cancelled</Option>
+            <Option value="">All statuses</Option>
+          </Dropdown>
+        )}
+        <div className={styles.refreshGroup}>
+          <Text className={styles.lastUpdated}>Last updated: {getTimeSince()}</Text>
+          <Button
+            appearance="subtle"
+            icon={<ArrowClockwiseRegular />}
+            onClick={handleRefresh}
+          />
+        </div>
+      </div>
+
+      <TabList selectedValue={selectedTab} onTabSelect={handleTabSelect}>
+        <Tab value="waiting">Waiting on me</Tab>
+        <Tab value="started">Started by me</Tab>
+        {isSiteAdmin && <Tab value="all">All active</Tab>}
+      </TabList>
+
+      <div className={styles.tabContent}>
+        {selectedTab === 'waiting' && (
+          <WaitingOnMe
+            userId={userId}
+            searchQuery={searchQuery}
+            refreshKey={refreshKey}
+          />
+        )}
+        {selectedTab === 'started' && (
+          <IStarted
+            userId={userId}
+            searchQuery={searchQuery}
+            statusFilter={statusFilter}
+            refreshKey={refreshKey}
+          />
+        )}
+        {selectedTab === 'all' && isSiteAdmin && (
+          <AllActive
+            searchQuery={searchQuery}
+            statusFilter={statusFilter}
+            refreshKey={refreshKey}
+          />
         )}
       </div>
-    </FluentThemeProvider>
+    </div>
   );
 };

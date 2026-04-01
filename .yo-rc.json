@@ -1,0 +1,23 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "document-journey",
+    "useGulp": false,
+    "componentType": "extension",
+    "extensionType": "ListViewCommandSet",
+    "template": "none",
+    "componentName": "DocumentJourney",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.22.0",
+    "sdksVersions": {},
+    "version": "1.22.2",
+    "libraryName": "document-journey",
+    "libraryId": "0bd09f91-7e5e-4ec8-b963-35d2d9de32d4",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionShortDescription": "document-journey description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false
+  }
+}

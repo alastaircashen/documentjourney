@@ -4,14 +4,17 @@ export interface IHistory {
   Id: number;
   Title: string;
   JourneyId: number;
-  JourneyTitle: string;
+  JourneyName: string;
+  JourneyVersion: number;
+  JourneyBatchId: string;
   DocumentUrl: string;
   DocumentName: string;
-  LibraryId: string;
+  LibraryUrl: string;
   Status: JourneyStatus;
   CurrentStepOrder: number;
   TotalSteps: number;
-  InitiatedBy: string;
+  InitiatedById: number;
   InitiatedDate: string;
-  CompletedDate: string | null;
+  CompletedDate: string;
+  CancellationReason: string;
 }

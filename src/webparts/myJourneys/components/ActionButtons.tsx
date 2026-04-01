@@ -2,155 +2,176 @@ import * as React from 'react';
 import {
   Button,
   Dialog,
+  DialogTrigger,
   DialogSurface,
-  DialogTitle,
   DialogBody,
+  DialogTitle,
   DialogContent,
   DialogActions,
   Textarea,
-  makeStyles,
+  Menu,
+  MenuTrigger,
+  MenuList,
+  MenuItem,
+  MenuPopover,
+  Input,
+  makeStyles
 } from '@fluentui/react-components';
-import {
-  CheckmarkRegular,
-  DismissRegular,
-  ChatRegular,
-  PenRegular,
-} from '@fluentui/react-icons';
+import { MoreHorizontalRegular } from '@fluentui/react-icons';
 import { StepType } from '../../../constants';
 
 export interface IActionButtonsProps {
   stepType: StepType;
   requireComments: boolean;
-  onApprove: (comments?: string) => void;
-  onReject: (comments?: string) => void;
-  onComplete: (comments?: string) => void;
-  onFeedback: (comments: string) => void;
+  allowDelegate: boolean;
+  onAction: (action: string, comments?: string) => void;
+  onDelegate?: (newAssigneeId: number) => void;
 }
 
 const useStyles = makeStyles({
   actions: {
     display: 'flex',
-    gap: '6px',
+    gap: '4px',
+    alignItems: 'center',
   },
 });
 
-export const ActionButtons: React.FC<IActionButtonsProps> = ({
-  stepType,
-  requireComments,
-  onApprove,
-  onReject,
-  onComplete,
-  onFeedback,
-}) => {
+export const ActionButtons: React.FC<IActionButtonsProps> = ({ stepType, requireComments, allowDelegate, onAction, onDelegate }) => {
   const styles = useStyles();
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [dialogAction, setDialogAction] = React.useState<string>('');
+  const [pendingAction, setPendingAction] = React.useState('');
   const [comments, setComments] = React.useState('');
+  const [delegateDialogOpen, setDelegateDialogOpen] = React.useState(false);
+  const [delegateEmail, setDelegateEmail] = React.useState('');
 
-  const openDialog = (action: string): void => {
-    setDialogAction(action);
-    setComments('');
-    setDialogOpen(true);
-  };
-
-  const handleSubmit = (): void => {
-    switch (dialogAction) {
-      case 'approve': onApprove(comments); break;
-      case 'reject': onReject(comments); break;
-      case 'complete': onComplete(comments); break;
-      case 'feedback': onFeedback(comments); break;
-    }
-    setDialogOpen(false);
-  };
-
-  const handleAction = (action: string, handler: (c?: string) => void): void => {
-    if (requireComments || action === 'feedback') {
-      openDialog(action);
+  const handleAction = (action: string): void => {
+    if (requireComments) {
+      setPendingAction(action);
+      setDialogOpen(true);
     } else {
-      handler();
+      onAction(action);
     }
   };
 
-  const renderButtons = (): React.ReactElement => {
+  const handleConfirm = (): void => {
+    onAction(pendingAction, comments);
+    setDialogOpen(false);
+    setComments('');
+    setPendingAction('');
+  };
+
+  const handleDelegateConfirm = (): void => {
+    // In a real implementation, this would resolve the email to a user ID via PeoplePicker
+    // For now we pass a placeholder - the actual PeoplePicker integration requires SPFx context
+    if (onDelegate && delegateEmail) {
+      onDelegate(0); // Would be resolved user ID
+    }
+    setDelegateDialogOpen(false);
+    setDelegateEmail('');
+  };
+
+  const renderButtons = (): React.ReactNode => {
     switch (stepType) {
       case StepType.Approval:
         return (
           <>
-            <Button
-              appearance="primary"
-              size="small"
-              icon={<CheckmarkRegular />}
-              onClick={() => handleAction('approve', onApprove)}
-            >
+            <Button appearance="primary" size="small" onClick={() => handleAction('Approved')}>
               Approve
             </Button>
-            <Button
-              size="small"
-              icon={<DismissRegular />}
-              onClick={() => handleAction('reject', onReject)}
-              style={{ color: 'var(--colorPaletteRedForeground1)' }}
-            >
+            <Button appearance="subtle" size="small" onClick={() => handleAction('Rejected')}>
               Reject
             </Button>
           </>
         );
       case StepType.Task:
         return (
-          <Button
-            appearance="primary"
-            size="small"
-            icon={<CheckmarkRegular />}
-            onClick={() => handleAction('complete', onComplete)}
-          >
+          <Button appearance="primary" size="small" onClick={() => handleAction('Completed')}>
             Mark Complete
           </Button>
         );
       case StepType.Feedback:
         return (
-          <Button
-            appearance="primary"
-            size="small"
-            icon={<ChatRegular />}
-            onClick={() => handleAction('feedback', onFeedback)}
-          >
+          <Button appearance="primary" size="small" onClick={() => handleAction('FeedbackProvided')}>
             Add Feedback
           </Button>
         );
       case StepType.Signature:
         return (
-          <Button
-            appearance="primary"
-            size="small"
-            icon={<PenRegular />}
-            onClick={() => handleAction('complete', onComplete)}
-          >
+          <Button appearance="primary" size="small" onClick={() => handleAction('Signed')}>
             Sign
           </Button>
         );
       default:
-        return <></>;
+        return null;
     }
   };
 
   return (
     <>
-      <div className={styles.actions}>{renderButtons()}</div>
-      <Dialog open={dialogOpen} onOpenChange={(_, { open }) => setDialogOpen(open)}>
+      <div className={styles.actions}>
+        {renderButtons()}
+        {allowDelegate && (
+          <Menu>
+            <MenuTrigger disableButtonEnhancement>
+              <Button appearance="subtle" size="small" icon={<MoreHorizontalRegular />} />
+            </MenuTrigger>
+            <MenuPopover>
+              <MenuList>
+                <MenuItem onClick={() => setDelegateDialogOpen(true)}>
+                  Delegate
+                </MenuItem>
+              </MenuList>
+            </MenuPopover>
+          </Menu>
+        )}
+      </div>
+
+      {/* Comments dialog */}
+      <Dialog open={dialogOpen} onOpenChange={(_e, data) => setDialogOpen(data.open)}>
         <DialogSurface>
-          <DialogTitle>{dialogAction === 'reject' ? 'Reject' : dialogAction === 'feedback' ? 'Provide Feedback' : 'Comments'}</DialogTitle>
           <DialogBody>
+            <DialogTitle>Add Comments</DialogTitle>
             <DialogContent>
               <Textarea
                 value={comments}
-                onChange={(_, data) => setComments(data.value)}
-                placeholder={dialogAction === 'feedback' ? 'Enter your feedback...' : 'Add comments (optional)...'}
+                onChange={(_e, data) => setComments(data.value)}
+                placeholder="Enter your comments..."
                 resize="vertical"
                 style={{ width: '100%', minHeight: '80px' }}
               />
             </DialogContent>
             <DialogActions>
-              <Button appearance="primary" onClick={handleSubmit}>Submit</Button>
-              <Button appearance="secondary" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <DialogTrigger disableButtonEnhancement>
+                <Button appearance="secondary">Cancel</Button>
+              </DialogTrigger>
+              <Button appearance="primary" onClick={handleConfirm}>
+                Confirm
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      {/* Delegate dialog */}
+      <Dialog open={delegateDialogOpen} onOpenChange={(_e, data) => setDelegateDialogOpen(data.open)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Delegate Step</DialogTitle>
+            <DialogContent>
+              <Input
+                value={delegateEmail}
+                onChange={(_e, data) => setDelegateEmail(data.value)}
+                placeholder="Enter person's email address..."
+                style={{ width: '100%' }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setDelegateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button appearance="primary" onClick={handleDelegateConfirm} disabled={!delegateEmail}>
+                Delegate
+              </Button>
             </DialogActions>
           </DialogBody>
         </DialogSurface>

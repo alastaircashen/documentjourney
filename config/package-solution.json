@@ -1,38 +1,48 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "document-journey",
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "version": "1.0.0.0",
+    "name": "document-journey-client-side-solution",
+    "id": "0bd09f91-7e5e-4ec8-b963-35d2d9de32d4",
+    "version": "0.2.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
+    "webApiPermissionRequests": [
+      {
+        "resource": "Microsoft Graph",
+        "scope": "User.ReadBasic.All"
+      }
+    ],
     "developer": {
-      "name": "Document Journey",
+      "name": "",
       "websiteUrl": "",
       "privacyUrl": "",
       "termsOfUseUrl": "",
-      "mpnId": "Undefined-1.20.0"
+      "mpnId": "Undefined-1.22.2"
     },
     "metadata": {
-      "shortDescription": { "default": "Document workflow journeys for SharePoint" },
-      "longDescription": { "default": "Enables structured document workflows (journeys) from SharePoint document libraries" },
+      "shortDescription": {
+        "default": "document-journey description"
+      },
+      "longDescription": {
+        "default": "document-journey description"
+      },
       "screenshotPaths": [],
       "videoUrl": "",
       "categories": []
     },
     "features": [
       {
-        "title": "Document Journey Command Set",
-        "description": "Adds 'Start a Journey' command to document libraries",
-        "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-        "version": "1.0.0.0"
-      },
-      {
-        "title": "My Journeys Web Part",
-        "description": "Dashboard for tracking document journeys",
-        "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-        "version": "1.0.0.0"
+        "title": "Application Extension - Deployment of custom action",
+        "description": "Deploys a custom action with ClientSideComponentId association",
+        "id": "e72d83b4-6f49-4d20-800f-73db3eee2ccc",
+        "version": "1.0.0.0",
+        "assets": {
+          "elementManifests": [
+            "elements.xml",
+            "ClientSideInstance.xml"
+          ]
+        }
       }
     ]
   },

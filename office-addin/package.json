@@ -1,0 +1,35 @@
+{
+  "name": "document-journey-office-addin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "start": "office-addin-debugging start manifest.json",
+    "stop": "office-addin-debugging stop manifest.json",
+    "validate": "office-addin-manifest validate manifest.json"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^3.27.0",
+    "@fluentui/react-components": "^9.56.4",
+    "@fluentui/react-icons": "^2.0.258",
+    "@pnp/logging": "^4.7.0",
+    "@pnp/sp": "^4.7.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/office-js": "^1.0.430",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "css-loader": "^7.1.2",
+    "html-webpack-plugin": "^5.6.3",
+    "office-addin-dev-certs": "^1.13.4",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "~5.6.0",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.1.0"
+  }
+}

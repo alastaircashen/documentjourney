@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Elements xmlns="http://schemas.microsoft.com/sharepoint/">
+    <ClientSideComponentInstance
+        Title="DocumentJourney"
+        Location="ClientSideExtension.ListViewCommandSet.CommandBar"
+        ListTemplateId="101"
+        Properties="{}"
+        ComponentId="d480eea3-7c0b-4a49-a5da-e055291ae4ca" />
+</Elements>

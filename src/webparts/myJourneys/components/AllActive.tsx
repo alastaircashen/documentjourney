@@ -9,87 +9,123 @@ import {
   TableColumnDefinition,
   createTableColumn,
   Badge,
-  Link,
   Text,
+  Spinner,
+  Link,
+  Button,
+  Dialog,
+  DialogSurface,
+  DialogBody,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Textarea,
   makeStyles,
-  tokens,
+  tokens
 } from '@fluentui/react-components';
-import { DocumentRegular } from '@fluentui/react-icons';
-import { SPFI } from '@pnp/sp';
-import { JourneyHistoryView } from './JourneyHistoryView';
 import { IHistory } from '../../../models/IHistory';
 import { JourneyStatus } from '../../../constants';
+import { JourneyHistoryView } from './JourneyHistoryView';
+import { useDocumentJourney } from '../../../common/DocumentJourneyContext';
 
 export interface IAllActiveProps {
-  journeys: IHistory[];
-  sp: SPFI;
+  searchQuery: string;
+  statusFilter: string;
+  refreshKey: number;
 }
 
-const STATUS_COLORS: Record<string, 'brand' | 'success' | 'danger' | 'informative'> = {
+const STATUS_COLORS: Record<string, any> = {
   [JourneyStatus.Active]: 'brand',
   [JourneyStatus.Completed]: 'success',
   [JourneyStatus.Rejected]: 'danger',
   [JourneyStatus.Cancelled]: 'informative',
+  [JourneyStatus.Stalled]: 'warning',
 };
 
 const useStyles = makeStyles({
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '40px 0',
+  empty: {
+    padding: '32px',
+    textAlign: 'center',
     color: tokens.colorNeutralForeground3,
-  },
-  clickableRow: {
-    cursor: 'pointer',
-  },
-  docLink: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
   },
 });
 
-export const AllActive: React.FC<IAllActiveProps> = ({ journeys, sp }) => {
+export const AllActive: React.FC<IAllActiveProps> = ({ searchQuery, statusFilter, refreshKey }) => {
   const styles = useStyles();
-  const [selectedHistory, setSelectedHistory] = React.useState<IHistory | null>(null);
+  const { journeyService } = useDocumentJourney();
+  const [items, setItems] = React.useState<IHistory[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [selectedHistory, setSelectedHistory] = React.useState<IHistory | undefined>();
+  const [cancelDialogOpen, setCancelDialogOpen] = React.useState(false);
+  const [cancelTarget, setCancelTarget] = React.useState<IHistory | undefined>();
+  const [cancelReason, setCancelReason] = React.useState('');
+  const [cancelling, setCancelling] = React.useState(false);
 
-  if (journeys.length === 0) {
-    return (
-      <div className={styles.emptyState}>
-        <Text size={400} weight="semibold">No active journeys</Text>
-        <Text size={200}>Active journeys across the site will appear here</Text>
-      </div>
-    );
-  }
+  const loadData = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const journeys = await journeyService.getAllActiveJourneys();
+      setItems(journeys);
+    } catch {
+      // Handle silently
+    }
+    setLoading(false);
+  };
+
+  React.useEffect(() => { loadData().catch(() => {}); }, [refreshKey]);
+
+  const filteredItems = React.useMemo(() => {
+    let result = items;
+    if (statusFilter) {
+      result = result.filter(i => i.Status === statusFilter);
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(i =>
+        i.DocumentName.toLowerCase().includes(q) ||
+        i.JourneyName.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [items, statusFilter, searchQuery]);
+
+  const handleCancel = async (): Promise<void> => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    try {
+      await journeyService.cancelJourney(cancelTarget.Id, cancelReason);
+      await loadData();
+    } catch {
+      // Handle error
+    }
+    setCancelling(false);
+    setCancelDialogOpen(false);
+    setCancelTarget(undefined);
+    setCancelReason('');
+  };
 
   const columns: TableColumnDefinition<IHistory>[] = [
     createTableColumn<IHistory>({
       columnId: 'document',
+      compare: (a, b) => a.DocumentName.localeCompare(b.DocumentName),
       renderHeaderCell: () => 'Document',
       renderCell: (item) => (
-        <div className={styles.docLink}>
-          <DocumentRegular />
-          <Link href={item.DocumentUrl} target="_blank">{item.DocumentName}</Link>
-        </div>
+        <Link href={item.DocumentUrl} target="_blank">
+          {item.DocumentName}
+        </Link>
       ),
     }),
     createTableColumn<IHistory>({
       columnId: 'journey',
+      compare: (a, b) => a.JourneyName.localeCompare(b.JourneyName),
       renderHeaderCell: () => 'Journey',
-      renderCell: (item) => <Text>{item.JourneyTitle}</Text>,
-    }),
-    createTableColumn<IHistory>({
-      columnId: 'initiatedBy',
-      renderHeaderCell: () => 'Initiated By',
-      renderCell: (item) => <Text>{item.InitiatedBy}</Text>,
+      renderCell: (item) => <Text>{item.JourneyName}</Text>,
     }),
     createTableColumn<IHistory>({
       columnId: 'status',
       renderHeaderCell: () => 'Status',
       renderCell: (item) => (
-        <Badge color={STATUS_COLORS[item.Status] || 'informative'} size="small">
+        <Badge appearance="filled" color={STATUS_COLORS[item.Status] || 'informative'}>
           {item.Status}
         </Badge>
       ),
@@ -102,17 +138,62 @@ export const AllActive: React.FC<IAllActiveProps> = ({ journeys, sp }) => {
       ),
     }),
     createTableColumn<IHistory>({
+      columnId: 'initiatedBy',
+      renderHeaderCell: () => 'Initiated By',
+      renderCell: (item) => (
+        <Text>User #{item.InitiatedById}</Text>
+      ),
+    }),
+    createTableColumn<IHistory>({
       columnId: 'started',
+      compare: (a, b) => a.InitiatedDate.localeCompare(b.InitiatedDate),
       renderHeaderCell: () => 'Started',
       renderCell: (item) => (
         <Text>{new Date(item.InitiatedDate).toLocaleDateString()}</Text>
       ),
     }),
+    createTableColumn<IHistory>({
+      columnId: 'actions',
+      renderHeaderCell: () => '',
+      renderCell: (item) => (
+        item.Status === JourneyStatus.Active ? (
+          <Button
+            appearance="subtle"
+            size="small"
+            style={{ color: tokens.colorPaletteRedForeground1 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setCancelTarget(item);
+              setCancelDialogOpen(true);
+            }}
+          >
+            Cancel
+          </Button>
+        ) : null
+      ),
+    }),
   ];
+
+  if (loading) {
+    return <Spinner label="Loading..." />;
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className={styles.empty}>
+        <Text size={400}>No active journeys</Text>
+      </div>
+    );
+  }
 
   return (
     <>
-      <DataGrid items={journeys} columns={columns} getRowId={(item) => String(item.Id)}>
+      <DataGrid
+        items={filteredItems}
+        columns={columns}
+        sortable
+        getRowId={(item) => item.Id.toString()}
+      >
         <DataGridHeader>
           <DataGridRow>
             {({ renderHeaderCell }) => <DataGridHeaderCell>{renderHeaderCell()}</DataGridHeaderCell>}
@@ -120,11 +201,7 @@ export const AllActive: React.FC<IAllActiveProps> = ({ journeys, sp }) => {
         </DataGridHeader>
         <DataGridBody<IHistory>>
           {({ item, rowId }) => (
-            <DataGridRow<IHistory>
-              key={rowId}
-              className={styles.clickableRow}
-              onClick={() => setSelectedHistory(item)}
-            >
+            <DataGridRow<IHistory> key={rowId} onClick={() => setSelectedHistory(item)}>
               {({ renderCell }) => <DataGridCell>{renderCell(item)}</DataGridCell>}
             </DataGridRow>
           )}
@@ -134,10 +211,40 @@ export const AllActive: React.FC<IAllActiveProps> = ({ journeys, sp }) => {
       {selectedHistory && (
         <JourneyHistoryView
           history={selectedHistory}
-          sp={sp}
-          onDismiss={() => setSelectedHistory(null)}
+          onDismiss={() => setSelectedHistory(undefined)}
         />
       )}
+
+      <Dialog open={cancelDialogOpen} onOpenChange={(_e, data) => setCancelDialogOpen(data.open)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Cancel Journey</DialogTitle>
+            <DialogContent>
+              <Text>Cancel this journey? This cannot be undone.</Text>
+              <Textarea
+                value={cancelReason}
+                onChange={(_e, data) => setCancelReason(data.value)}
+                placeholder="Reason for cancellation (optional)..."
+                resize="vertical"
+                style={{ width: '100%', minHeight: '60px', marginTop: '12px' }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setCancelDialogOpen(false)} disabled={cancelling}>
+                Keep Active
+              </Button>
+              <Button
+                appearance="primary"
+                style={{ backgroundColor: tokens.colorPaletteRedBackground3 }}
+                onClick={handleCancel}
+                disabled={cancelling}
+              >
+                {cancelling ? <Spinner size="tiny" /> : 'Cancel Journey'}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
     </>
   );
 };

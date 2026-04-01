@@ -1,17 +1,23 @@
-import { StepType, StepStatus, ActionType } from '../constants';
+import { StepStatus, StepType, CompletionRule } from '../constants';
 
 export interface IStepHistory {
   Id: number;
+  Title: string;
   HistoryId: number;
-  StepId: number;
-  StepTitle: string;
   StepOrder: number;
+  StepName: string;
   StepType: StepType;
+  AssignedToId: number[];
+  CompletionRule: CompletionRule;
+  RequireComments: boolean;
+  AllowReject: boolean;
+  AllowDelegate: boolean;
   Status: StepStatus;
-  AssignedTo: string[];
-  ActionBy: string | null;
-  ActionType: ActionType | null;
-  ActionDate: string | null;
-  Comments: string | null;
-  DueDate: string | null;
+  ActionById: number;
+  ActionDate: string;
+  Comments: string;
+  DueDate: string;
+  DelegatedFrom: number;
+  DelegatedBy: number;
+  DelegatedDate: string;
 }

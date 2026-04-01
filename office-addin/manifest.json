@@ -1,0 +1,99 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/vDevPreview/MicrosoftTeams.schema.json",
+  "manifestVersion": "devPreview",
+  "version": "1.0.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "developer": {
+    "name": "Document Journey",
+    "websiteUrl": "https://localhost:3000",
+    "privacyUrl": "https://localhost:3000/privacy",
+    "termsOfUseUrl": "https://localhost:3000/terms"
+  },
+  "name": {
+    "short": "Document Journey",
+    "full": "Document Journey - Workflow Management"
+  },
+  "description": {
+    "short": "Manage document workflows from Word, Excel, and PowerPoint",
+    "full": "Start and act on document approval workflows, feedback requests, and task assignments directly from within your Office application. Works with documents stored on SharePoint."
+  },
+  "icons": {
+    "outline": "assets/outline.png",
+    "color": "assets/color.png"
+  },
+  "accentColor": "#0078D4",
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": []
+    }
+  },
+  "extensions": [
+    {
+      "requirements": {
+        "scopes": ["personal"],
+        "capabilities": [
+          { "name": "SharedRuntime", "minVersion": "1.1" }
+        ]
+      },
+      "runtimes": [
+        {
+          "requirements": {
+            "capabilities": [
+              { "name": "SharedRuntime", "minVersion": "1.1" }
+            ]
+          },
+          "id": "TaskPaneRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://localhost:3000/taskpane.html"
+          }
+        }
+      ],
+      "ribbons": [
+        {
+          "contexts": ["default"],
+          "tabs": [
+            {
+              "builtInTabId": "TabHome",
+              "groups": [
+                {
+                  "id": "documentJourneyGroup",
+                  "label": "Document Journey",
+                  "icons": [
+                    { "size": 16, "file": "assets/icon-16.png" },
+                    { "size": 32, "file": "assets/icon-32.png" },
+                    { "size": 80, "file": "assets/icon-80.png" }
+                  ],
+                  "controls": [
+                    {
+                      "id": "showTaskpane",
+                      "type": "button",
+                      "label": "Journey",
+                      "icons": [
+                        { "size": 16, "file": "assets/icon-16.png" },
+                        { "size": 32, "file": "assets/icon-32.png" },
+                        { "size": 80, "file": "assets/icon-80.png" }
+                      ],
+                      "supertip": {
+                        "title": "Document Journey",
+                        "description": "View or start a document journey workflow"
+                      },
+                      "actionId": "showTaskpane"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "validDomains": [
+    "localhost:3000"
+  ],
+  "webApplicationInfo": {
+    "id": "YOUR_CLIENT_ID_HERE",
+    "resource": "api://localhost:3000/YOUR_CLIENT_ID_HERE"
+  }
+}

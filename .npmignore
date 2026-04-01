@@ -1,16 +1,22 @@
-# Folders
-.vscode
-coverage
-node_modules
-sharepoint
-src
-temp
+# Ignore everything by default
+**
 
-# Files
-*.csproj
-.git*
-.editorconfig
-.yo-rc.json
-gulpfile.js
-tsconfig.json
-tslint.json
+# Use negative patterns to bring back the specific things we want to publish
+!/bin/**
+!/dist/**
+!/EULA/**
+!/lib/**
+!ThirdPartyNotice.txt
+
+# Ignore certain files in the above folders
+/dist/*.stats.*
+/dist/**/*.js.map
+/lib/**/*.js.map
+/lib/**/test/**
+
+# NOTE: These don't need to be specified, because NPM includes them automatically.
+#
+# package.json
+# README (and its variants)
+# CHANGELOG (and its variants)
+# LICENSE / LICENCE

@@ -1,0 +1,219 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "name": "DJ_Flow_Notification",
+    "description": "Document Journey - Notification step flow. Sends styled email and Teams message to assignees, auto-completes the step, and triggers the next step's flow.",
+    "version": "2.0.0"
+  },
+  "parameters": {
+    "SharePointSiteUrl": {
+      "type": "String",
+      "defaultValue": "",
+      "metadata": { "description": "SharePoint site URL where DJ lists are located" }
+    },
+    "SearchSiteUrl": {
+      "type": "String",
+      "defaultValue": "",
+      "metadata": { "description": "SharePoint site URL for the search/tasks hub" }
+    },
+    "StepHistoryListName": {
+      "type": "String",
+      "defaultValue": "DJ_StepHistory"
+    },
+    "HistoryListName": {
+      "type": "String",
+      "defaultValue": "DJ_History"
+    }
+  },
+  "triggers": {
+    "manual": {
+      "type": "Request",
+      "kind": "Http",
+      "inputs": {
+        "schema": {
+          "type": "object",
+          "properties": {
+            "historyId": { "type": "integer" },
+            "stepOrder": { "type": "integer" },
+            "stepType": { "type": "string" },
+            "stepName": { "type": "string" },
+            "documentUrl": { "type": "string" },
+            "documentName": { "type": "string" },
+            "journeyName": { "type": "string" },
+            "siteUrl": { "type": "string" }
+          },
+          "required": ["historyId", "stepOrder", "stepType", "stepName", "documentUrl", "documentName", "journeyName", "siteUrl"]
+        }
+      }
+    }
+  },
+  "actions": {
+    "Get_Step_History_Record": {
+      "type": "ApiConnection",
+      "runAfter": {},
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+        "method": "get",
+        "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('StepHistoryListName'))}/items",
+        "queries": {
+          "$filter": "HistoryId eq @{triggerBody()?['historyId']} and StepOrder eq @{triggerBody()?['stepOrder']}"
+        }
+      }
+    },
+    "Send_Email_Notification": {
+      "type": "ApiConnection",
+      "runAfter": { "Get_Step_History_Record": ["Succeeded"] },
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['office365']['connectionId']" } },
+        "method": "post",
+        "path": "/v2/Mail",
+        "body": {
+          "To": "@{body('Get_Step_History_Record')?['value']?[0]?['AssignedTo']?['Email']}",
+          "Subject": "Document Journey Notification: @{triggerBody()?['journeyName']} - @{triggerBody()?['stepName']}",
+          "Body": "<div style=\"font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; color:#333\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 12px 0\"><tr><td style=\"background:#2ea3a0; color:#fff; font-weight:600; padding:4px 12px; border-radius:9999px; font-size:14px; line-height:18px; display:inline-block\">Notification</td></tr></table><p><strong>You have a notification for a document journey.</strong><br>Please review the details below.</p><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid #ddd; border-radius:6px; margin-top:10px\"><tr><td style=\"background:#f4f4f4; font-size:16px; font-weight:600; padding:14px; border-bottom:1px solid #ddd\">Journey Details</td></tr><tr><td style=\"padding:16px\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"padding:5px 0; vertical-align:top; width:160px\">Journey:</td><td style=\"padding:5px 0; vertical-align:top\"><strong>@{triggerBody()?['journeyName']}</strong></td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Step:</td><td style=\"padding:5px 0; vertical-align:top\">@{triggerBody()?['stepName']} (Step @{triggerBody()?['stepOrder']})</td></tr><tr><td colspan=\"2\" style=\"height:20px; line-height:20px\">&nbsp;</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Document:</td><td style=\"padding:5px 0; vertical-align:top\"><a href=\"@{triggerBody()?['documentUrl']}\" style=\"color:#2ea3a0\">@{triggerBody()?['documentName']}</a></td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Site:</td><td style=\"padding:5px 0; vertical-align:top\"><a href=\"@{triggerBody()?['siteUrl']}\" style=\"color:#2ea3a0\">@{triggerBody()?['siteUrl']}</a></td></tr></table></td></tr><tr><td style=\"background:#f4f4f4; font-size:16px; font-weight:600; padding:14px; border-bottom:1px solid #ddd; border-top:1px solid #ddd\">Message</td></tr><tr><td style=\"padding:16px\">@{if(empty(body('Get_Step_History_Record')?['value']?[0]?['Message']), 'No additional message provided.', body('Get_Step_History_Record')?['value']?[0]?['Message'])}</td></tr></table><div style=\"margin:30px 0\">To view all your journeys: <a href=\"@{parameters('SearchSiteUrl')}/SitePages/Tasks.aspx\" style=\"color:#2ea3a0\">Click here</a></div><hr style=\"border:none; border-top:1px solid #eee; margin:24px 0\"><p style=\"color:#666\"><i>This is an automated notification. Do not reply to this email.<br>If you believe you received this in error, contact the journey initiator.</i></p></div>",
+          "IsHtml": true
+        }
+      }
+    },
+    "Post_Teams_Message": {
+      "type": "ApiConnection",
+      "runAfter": { "Get_Step_History_Record": ["Succeeded"] },
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['teams']['connectionId']" } },
+        "method": "post",
+        "path": "/v1.0/users/@{body('Get_Step_History_Record')?['value']?[0]?['AssignedTo']?['Email']}/messages",
+        "body": {
+          "messageType": "message",
+          "body": {
+            "content": "Notification for **@{triggerBody()?['documentName']}**: @{triggerBody()?['journeyName']} - @{triggerBody()?['stepName']}",
+            "contentType": "html"
+          }
+        }
+      }
+    },
+    "Mark_Step_Completed": {
+      "type": "ApiConnection",
+      "runAfter": {
+        "Send_Email_Notification": ["Succeeded", "Failed"],
+        "Post_Teams_Message": ["Succeeded", "Failed"]
+      },
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+        "method": "patch",
+        "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('StepHistoryListName'))}/items/@{body('Get_Step_History_Record')?['value']?[0]?['ID']}",
+        "body": {
+          "Status": "Completed",
+          "ActionDate": "@{utcNow()}",
+          "Comments": "Notified"
+        }
+      }
+    },
+    "Get_History_Record": {
+      "type": "ApiConnection",
+      "runAfter": { "Mark_Step_Completed": ["Succeeded"] },
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+        "method": "get",
+        "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('HistoryListName'))}/items/@{triggerBody()?['historyId']}"
+      }
+    },
+    "Check_If_Journey_Complete": {
+      "type": "If",
+      "runAfter": { "Get_History_Record": ["Succeeded"] },
+      "expression": {
+        "and": [
+          { "greaterOrEquals": ["@triggerBody()?['stepOrder']", "@body('Get_History_Record')?['TotalSteps']"] }
+        ]
+      },
+      "actions": {
+        "Mark_Journey_Completed": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+            "method": "patch",
+            "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('HistoryListName'))}/items/@{triggerBody()?['historyId']}",
+            "body": {
+              "Status": "Completed",
+              "CompletedDate": "@{utcNow()}"
+            }
+          }
+        },
+        "Send_Journey_Completed_Email": {
+          "type": "ApiConnection",
+          "runAfter": { "Mark_Journey_Completed": ["Succeeded"] },
+          "inputs": {
+            "host": { "connection": { "name": "@parameters('$connections')['office365']['connectionId']" } },
+            "method": "post",
+            "path": "/v2/Mail",
+            "body": {
+              "To": "@{body('Get_History_Record')?['InitiatedBy']?['Email']}",
+              "Subject": "Journey Completed: @{triggerBody()?['journeyName']} - @{triggerBody()?['documentName']}",
+              "Body": "<div style=\"font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; color:#333\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 12px 0\"><tr><td style=\"background:#107c10; color:#fff; font-weight:600; padding:4px 12px; border-radius:9999px; font-size:14px; line-height:18px; display:inline-block\">Journey Complete</td></tr></table><p><strong>A document journey you initiated has been completed.</strong><br>All steps have been successfully finished.</p><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid #ddd; border-radius:6px; margin-top:10px\"><tr><td style=\"background:#f4f4f4; font-size:16px; font-weight:600; padding:14px; border-bottom:1px solid #ddd\">Journey Summary</td></tr><tr><td style=\"padding:16px\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"padding:5px 0; vertical-align:top; width:160px\">Journey:</td><td style=\"padding:5px 0; vertical-align:top\"><strong>@{triggerBody()?['journeyName']}</strong></td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Document:</td><td style=\"padding:5px 0; vertical-align:top\"><a href=\"@{triggerBody()?['documentUrl']}\" style=\"color:#107c10\">@{triggerBody()?['documentName']}</a></td></tr><tr><td colspan=\"2\" style=\"height:20px; line-height:20px\">&nbsp;</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Total Steps:</td><td style=\"padding:5px 0; vertical-align:top\">@{body('Get_History_Record')?['TotalSteps']}</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Completed:</td><td style=\"padding:5px 0; vertical-align:top\">@{formatDateTime(utcNow(), 'dd/MM/yyyy hh:mm tt')}</td></tr></table></td></tr></table><div style=\"margin:30px 0\">To view all your journeys: <a href=\"@{parameters('SearchSiteUrl')}/SitePages/Tasks.aspx\" style=\"color:#107c10\">Click here</a></div><hr style=\"border:none; border-top:1px solid #eee; margin:24px 0\"><p style=\"color:#666\"><i>This is an automated notification. Do not reply to this email.<br>If you believe you received this in error, contact the journey initiator.</i></p></div>",
+              "IsHtml": true
+            }
+          }
+        }
+      },
+      "else": {
+        "actions": {
+          "Advance_Journey": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+              "method": "patch",
+              "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('HistoryListName'))}/items/@{triggerBody()?['historyId']}",
+              "body": {
+                "CurrentStepOrder": "@{add(triggerBody()?['stepOrder'], 1)}"
+              }
+            }
+          },
+          "Get_Next_Step": {
+            "type": "ApiConnection",
+            "runAfter": { "Advance_Journey": ["Succeeded"] },
+            "inputs": {
+              "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+              "method": "get",
+              "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('StepHistoryListName'))}/items",
+              "queries": {
+                "$filter": "HistoryId eq @{triggerBody()?['historyId']} and StepOrder eq @{add(triggerBody()?['stepOrder'], 1)}"
+              }
+            }
+          },
+          "Trigger_Next_Step_Flow": {
+            "type": "Http",
+            "runAfter": { "Get_Next_Step": ["Succeeded"] },
+            "inputs": {
+              "method": "POST",
+              "uri": "REPLACE_WITH_NEXT_STEP_FLOW_URL",
+              "body": {
+                "historyId": "@{triggerBody()?['historyId']}",
+                "stepOrder": "@{add(triggerBody()?['stepOrder'], 1)}",
+                "stepType": "@{body('Get_Next_Step')?['value']?[0]?['StepType']}",
+                "stepName": "@{body('Get_Next_Step')?['value']?[0]?['StepName']}",
+                "documentUrl": "@{triggerBody()?['documentUrl']}",
+                "documentName": "@{triggerBody()?['documentName']}",
+                "journeyName": "@{triggerBody()?['journeyName']}",
+                "siteUrl": "@{triggerBody()?['siteUrl']}"
+              },
+              "retryPolicy": {
+                "type": "exponential",
+                "count": 3,
+                "interval": "PT5S",
+                "maximumInterval": "PT2M"
+              }
+            }
+          }
+        }
+      }
+    },
+    "Response": {
+      "type": "Response",
+      "runAfter": { "Check_If_Journey_Complete": ["Succeeded"] },
+      "inputs": {
+        "statusCode": 200,
+        "body": { "status": "completed" }
+      }
+    }
+  }
+}

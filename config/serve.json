@@ -4,10 +4,31 @@
   "https": true,
   "serveConfigurations": {
     "default": {
-      "pageUrl": "https://yourtenant.sharepoint.com/sites/yoursite/Shared%20Documents",
+      "pageUrl": "https://engagesq.sharepoint.com/sites/DocumentJourney/Shared%20Documents/Forms/AllItems.aspx",
       "customActions": {
-        "a1b2c3d4-1111-2222-3333-444455556666": {
+        "d480eea3-7c0b-4a49-a5da-e055291ae4ca": {
           "location": "ClientSideExtension.ListViewCommandSet.CommandBar",
+          "properties": {}
+        }
+      },
+      "fieldCustomizers": {
+        "DJStatus": {
+          "id": "a1b2c3d4-5678-4def-9abc-def012345678",
+          "properties": {}
+        }
+      }
+    },
+    "documentJourney": {
+      "pageUrl": "https://engagesq.sharepoint.com/sites/DocumentJourney/Shared%20Documents/Forms/AllItems.aspx",
+      "customActions": {
+        "d480eea3-7c0b-4a49-a5da-e055291ae4ca": {
+          "location": "ClientSideExtension.ListViewCommandSet.CommandBar",
+          "properties": {}
+        }
+      },
+      "fieldCustomizers": {
+        "DJStatus": {
+          "id": "a1b2c3d4-5678-4def-9abc-def012345678",
           "properties": {}
         }
       }

@@ -1,0 +1,138 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "name": "DJ_Flow_StuckStepMonitor",
+    "description": "Document Journey - Stuck Step Monitor. Scheduled flow that runs daily to detect stalled journey steps. Sends styled reminder emails to assignees and alert emails to initiators. Flags journeys as 'Stalled' if a step is stuck more than 3x its DueDays.",
+    "version": "2.0.0"
+  },
+  "parameters": {
+    "SharePointSiteUrl": {
+      "type": "String",
+      "defaultValue": ""
+    },
+    "SearchSiteUrl": {
+      "type": "String",
+      "defaultValue": "",
+      "metadata": { "description": "SharePoint site URL for the search/tasks hub" }
+    },
+    "StepHistoryListName": {
+      "type": "String",
+      "defaultValue": "DJ_StepHistory"
+    },
+    "HistoryListName": {
+      "type": "String",
+      "defaultValue": "DJ_History"
+    }
+  },
+  "triggers": {
+    "Recurrence": {
+      "type": "Recurrence",
+      "recurrence": {
+        "frequency": "Day",
+        "interval": 1,
+        "startTime": "2024-01-01T06:00:00Z",
+        "timeZone": "UTC"
+      }
+    }
+  },
+  "actions": {
+    "Get_Overdue_Steps": {
+      "type": "ApiConnection",
+      "runAfter": {},
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+        "method": "get",
+        "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('StepHistoryListName'))}/items",
+        "queries": {
+          "$filter": "Status eq 'Pending' and DueDate lt '@{utcNow()}'",
+          "$top": 500
+        }
+      }
+    },
+    "For_Each_Overdue_Step": {
+      "type": "Foreach",
+      "runAfter": { "Get_Overdue_Steps": ["Succeeded"] },
+      "foreach": "@body('Get_Overdue_Steps')?['value']",
+      "actions": {
+        "Get_Journey_History": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+            "method": "get",
+            "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('HistoryListName'))}/items/@{items('For_Each_Overdue_Step')?['HistoryId']}"
+          }
+        },
+        "Check_If_Journey_Still_Active": {
+          "type": "If",
+          "runAfter": { "Get_Journey_History": ["Succeeded"] },
+          "expression": {
+            "and": [
+              { "equals": ["@body('Get_Journey_History')?['Status']", "Active"] }
+            ]
+          },
+          "actions": {
+            "Send_Reminder_Email": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": { "connection": { "name": "@parameters('$connections')['office365']['connectionId']" } },
+                "method": "post",
+                "path": "/v2/Mail",
+                "body": {
+                  "To": "@{items('For_Each_Overdue_Step')?['AssignedTo']?['Email']}",
+                  "Subject": "Overdue Reminder: @{body('Get_Journey_History')?['JourneyName']} - @{items('For_Each_Overdue_Step')?['StepName']}",
+                  "Body": "<div style=\"font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; color:#333\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 12px 0\"><tr><td style=\"background:#d83b01; color:#fff; font-weight:600; padding:4px 12px; border-radius:9999px; font-size:14px; line-height:18px; display:inline-block\">Overdue Reminder</td></tr></table><p><strong>You have an overdue step that requires your attention.</strong><br>Please take action as soon as possible to avoid further delays.</p><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid #ddd; border-radius:6px; margin-top:10px\"><tr><td style=\"background:#f4f4f4; font-size:16px; font-weight:600; padding:14px; border-bottom:1px solid #ddd\">Overdue Step Details</td></tr><tr><td style=\"padding:16px\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"padding:5px 0; vertical-align:top; width:160px\">Step Name:</td><td style=\"padding:5px 0; vertical-align:top\"><strong>@{items('For_Each_Overdue_Step')?['StepName']}</strong></td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Step Type:</td><td style=\"padding:5px 0; vertical-align:top\">@{items('For_Each_Overdue_Step')?['StepType']}</td></tr><tr><td colspan=\"2\" style=\"height:20px; line-height:20px\">&nbsp;</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Journey:</td><td style=\"padding:5px 0; vertical-align:top\">@{body('Get_Journey_History')?['JourneyName']}</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Document:</td><td style=\"padding:5px 0; vertical-align:top\"><a href=\"@{body('Get_Journey_History')?['DocumentUrl']}\" style=\"color:#d83b01\">@{body('Get_Journey_History')?['DocumentName']}</a></td></tr><tr><td colspan=\"2\" style=\"height:20px; line-height:20px\">&nbsp;</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Assigned To:</td><td style=\"padding:5px 0; vertical-align:top\">@{items('For_Each_Overdue_Step')?['AssignedTo']?['Title']}</td></tr><tr><td style=\"padding:5px 0; vertical-align:top; color:#d83b01; font-weight:600\">Due Date:</td><td style=\"padding:5px 0; vertical-align:top; color:#d83b01; font-weight:600\">@{formatDateTime(items('For_Each_Overdue_Step')?['DueDate'], 'dd/MM/yyyy')} (OVERDUE)</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Initiated By:</td><td style=\"padding:5px 0; vertical-align:top\">@{body('Get_Journey_History')?['InitiatedBy']?['Title']}</td></tr></table></td></tr><tr><td style=\"background:#f4f4f4; font-size:16px; font-weight:600; padding:14px; border-bottom:1px solid #ddd; border-top:1px solid #ddd\">Action Required</td></tr><tr><td style=\"padding:16px\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"padding:5px 0; vertical-align:top; width:160px\">Status:</td><td style=\"padding:5px 0; vertical-align:top; color:#d83b01; font-weight:600\">Overdue - Action Required</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Next Steps:</td><td style=\"padding:5px 0; vertical-align:top\">Please complete this step as soon as possible. If you are unable to complete it, contact the journey initiator to discuss next steps.</td></tr></table></td></tr></table><div style=\"margin:30px 0\">To view all your tasks: <a href=\"@{parameters('SearchSiteUrl')}/SitePages/Tasks.aspx\" style=\"color:#d83b01\">Click here</a></div><hr style=\"border:none; border-top:1px solid #eee; margin:24px 0\"><p style=\"color:#666\"><i>This is an automated reminder. Do not reply to this email.<br>If you believe you received this in error, contact the journey initiator.</i></p></div>",
+                  "IsHtml": true
+                }
+              }
+            },
+            "Calculate_Days_Overdue": {
+              "type": "Compose",
+              "runAfter": { "Send_Reminder_Email": ["Succeeded", "Failed"] },
+              "inputs": "@div(sub(ticks(utcNow()), ticks(items('For_Each_Overdue_Step')?['DueDate'])), 864000000000)"
+            },
+            "Check_If_Stalled": {
+              "type": "If",
+              "runAfter": { "Calculate_Days_Overdue": ["Succeeded"] },
+              "expression": {
+                "and": [
+                  { "greater": ["@outputs('Calculate_Days_Overdue')", 21] }
+                ]
+              },
+              "actions": {
+                "Mark_Journey_Stalled": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connection": { "name": "@parameters('$connections')['sharepointonline']['connectionId']" } },
+                    "method": "patch",
+                    "path": "/datasets/@{encodeURIComponent(parameters('SharePointSiteUrl'))}/tables/@{encodeURIComponent(parameters('HistoryListName'))}/items/@{items('For_Each_Overdue_Step')?['HistoryId']}",
+                    "body": {
+                      "Status": "Stalled"
+                    }
+                  }
+                },
+                "Notify_Initiator_Of_Stall": {
+                  "type": "ApiConnection",
+                  "runAfter": { "Mark_Journey_Stalled": ["Succeeded"] },
+                  "inputs": {
+                    "host": { "connection": { "name": "@parameters('$connections')['office365']['connectionId']" } },
+                    "method": "post",
+                    "path": "/v2/Mail",
+                    "body": {
+                      "To": "@{body('Get_Journey_History')?['InitiatedBy']?['Email']}",
+                      "Subject": "Journey Stalled: @{body('Get_Journey_History')?['JourneyName']} - @{body('Get_Journey_History')?['DocumentName']}",
+                      "Body": "<div style=\"font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; color:#333\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 12px 0\"><tr><td style=\"background:#a4262c; color:#fff; font-weight:600; padding:4px 12px; border-radius:9999px; font-size:14px; line-height:18px; display:inline-block\">Journey Stalled</td></tr></table><p><strong>A document journey you initiated has been flagged as stalled.</strong><br>A step has been overdue for more than 3 weeks with no action taken.</p><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid #ddd; border-radius:6px; margin-top:10px\"><tr><td style=\"background:#f4f4f4; font-size:16px; font-weight:600; padding:14px; border-bottom:1px solid #ddd\">Stalled Journey Details</td></tr><tr><td style=\"padding:16px\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"padding:5px 0; vertical-align:top; width:160px\">Journey:</td><td style=\"padding:5px 0; vertical-align:top\"><strong>@{body('Get_Journey_History')?['JourneyName']}</strong></td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Document:</td><td style=\"padding:5px 0; vertical-align:top\"><a href=\"@{body('Get_Journey_History')?['DocumentUrl']}\" style=\"color:#a4262c\">@{body('Get_Journey_History')?['DocumentName']}</a></td></tr><tr><td colspan=\"2\" style=\"height:20px; line-height:20px\">&nbsp;</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Stuck Step:</td><td style=\"padding:5px 0; vertical-align:top\"><strong>@{items('For_Each_Overdue_Step')?['StepName']}</strong></td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Step Type:</td><td style=\"padding:5px 0; vertical-align:top\">@{items('For_Each_Overdue_Step')?['StepType']}</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Assigned To:</td><td style=\"padding:5px 0; vertical-align:top\">@{items('For_Each_Overdue_Step')?['AssignedTo']?['Title']}</td></tr><tr><td style=\"padding:5px 0; vertical-align:top; color:#a4262c; font-weight:600\">Due Date:</td><td style=\"padding:5px 0; vertical-align:top; color:#a4262c; font-weight:600\">@{formatDateTime(items('For_Each_Overdue_Step')?['DueDate'], 'dd/MM/yyyy')} (3+ weeks overdue)</td></tr></table></td></tr><tr><td style=\"background:#f4f4f4; font-size:16px; font-weight:600; padding:14px; border-bottom:1px solid #ddd; border-top:1px solid #ddd\">Recommended Actions</td></tr><tr><td style=\"padding:16px\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"padding:5px 0; vertical-align:top; width:160px\">Status:</td><td style=\"padding:5px 0; vertical-align:top; color:#a4262c; font-weight:600\">Stalled</td></tr><tr><td style=\"padding:5px 0; vertical-align:top\">Options:</td><td style=\"padding:5px 0; vertical-align:top\">Contact the assignee directly to resolve the blockage, or consider cancelling and restarting the journey with a different assignee.</td></tr></table></td></tr></table><div style=\"margin:30px 0\">To view all your journeys: <a href=\"@{parameters('SearchSiteUrl')}/SitePages/Tasks.aspx\" style=\"color:#a4262c\">Click here</a></div><hr style=\"border:none; border-top:1px solid #eee; margin:24px 0\"><p style=\"color:#666\"><i>This is an automated alert. Do not reply to this email.<br>This journey has been automatically flagged as stalled and requires your intervention.</i></p></div>",
+                      "IsHtml": true
+                    }
+                  }
+                }
+              },
+              "else": { "actions": {} }
+            }
+          },
+          "else": { "actions": {} }
+        }
+      }
+    }
+  }
+}

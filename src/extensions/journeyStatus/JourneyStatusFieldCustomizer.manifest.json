@@ -1,0 +1,13 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-extension-manifest.schema.json",
+
+  "id": "a1b2c3d4-5678-4def-9abc-def012345678",
+  "alias": "JourneyStatusFieldCustomizer",
+  "componentType": "Extension",
+  "extensionType": "FieldCustomizer",
+
+  "version": "*",
+  "manifestVersion": 2,
+
+  "requiresCustomScript": false
+}

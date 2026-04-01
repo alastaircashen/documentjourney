@@ -3,26 +3,29 @@ import {
   Card,
   CardHeader,
   Text,
+  Body1,
+  Subtitle1,
+  Subtitle2,
   makeStyles,
   tokens,
+  Spinner,
   Accordion,
   AccordionItem,
   AccordionHeader,
   AccordionPanel,
   Button,
-  Divider,
-  Spinner,
+  Divider
 } from '@fluentui/react-components';
-import { ChevronRightRegular, ArrowDownloadRegular } from '@fluentui/react-icons';
 import { IJourney } from '../../../models/IJourney';
 
 export interface IJourneyPickerProps {
   journeys: IJourney[];
   galleryJourneys: IJourney[];
-  isGalleryConfigured: boolean;
-  loadingGallery: boolean;
+  loading: boolean;
   onSelect: (journey: IJourney) => void;
   onImport: (journeyId: number) => void;
+  onCreate: () => void;
+  hasGallery: boolean;
 }
 
 const useStyles = makeStyles({
@@ -30,11 +33,6 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-  },
-  sectionTitle: {
-    fontWeight: '600',
-    color: tokens.colorNeutralForeground1,
-    marginBottom: '4px',
   },
   card: {
     cursor: 'pointer',
@@ -44,134 +42,132 @@ const useStyles = makeStyles({
   },
   defaultCard: {
     cursor: 'pointer',
-    borderLeft: `3px solid ${tokens.colorBrandBackground}`,
+    borderLeftWidth: '3px',
+    borderLeftStyle: 'solid',
+    borderLeftColor: tokens.colorBrandBackground,
     ':hover': {
       backgroundColor: tokens.colorNeutralBackground1Hover,
     },
   },
-  cardContent: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
+  createCard: {
+    cursor: 'pointer',
+    outlineWidth: '2px',
+    outlineStyle: 'dashed',
+    outlineColor: tokens.colorBrandBackground,
+    ':hover': {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
   },
-  cardText: {
+  section: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '2px',
+    gap: '8px',
   },
-  description: {
-    color: tokens.colorNeutralForeground2,
-    fontSize: '12px',
-  },
-  galleryItem: {
+  galleryRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '8px 0',
-  },
-  divider: {
-    margin: '8px 0',
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: tokens.colorNeutralStroke1,
   },
 });
 
 export const JourneyPicker: React.FC<IJourneyPickerProps> = ({
   journeys,
   galleryJourneys,
-  isGalleryConfigured,
-  loadingGallery,
+  loading,
   onSelect,
   onImport,
+  onCreate,
+  hasGallery
 }) => {
   const styles = useStyles();
 
-  const defaultJourneys = journeys.filter((j) => j.IsDefault);
-  const customJourneys = journeys.filter((j) => !j.IsDefault);
+  if (loading) {
+    return <Spinner label="Loading journeys..." />;
+  }
+
+  const defaultJourneys = journeys.filter(j => j.IsDefault);
+  const customJourneys = journeys.filter(j => !j.IsDefault);
 
   return (
     <div className={styles.container}>
-      <Text className={styles.sectionTitle}>Choose a journey</Text>
+      <Subtitle1>Choose a journey</Subtitle1>
 
-      {defaultJourneys.map((journey) => (
-        <Card
-          key={journey.Id}
-          className={styles.defaultCard}
-          onClick={() => onSelect(journey)}
-          size="small"
-        >
-          <CardHeader
-            header={
-              <div className={styles.cardContent}>
-                <div className={styles.cardText}>
-                  <Text weight="semibold">{journey.Title}</Text>
-                  <Text className={styles.description}>{journey.Description}</Text>
-                </div>
-                <ChevronRightRegular />
-              </div>
-            }
-          />
-        </Card>
-      ))}
+      {defaultJourneys.length > 0 && (
+        <div className={styles.section}>
+          {defaultJourneys.map(journey => (
+            <Card
+              key={journey.Id}
+              className={styles.defaultCard}
+              onClick={() => onSelect(journey)}
+            >
+              <CardHeader
+                header={<Subtitle2>{journey.Title}</Subtitle2>}
+                description={<Body1>{journey.Description}</Body1>}
+              />
+            </Card>
+          ))}
+        </div>
+      )}
 
       {customJourneys.length > 0 && (
-        <>
-          <Divider className={styles.divider} />
-          <Text className={styles.sectionTitle}>Custom journeys</Text>
-          {customJourneys.map((journey) => (
+        <div className={styles.section}>
+          <Text weight="semibold">Custom Journeys</Text>
+          {customJourneys.map(journey => (
             <Card
               key={journey.Id}
               className={styles.card}
               onClick={() => onSelect(journey)}
-              size="small"
             >
               <CardHeader
-                header={
-                  <div className={styles.cardContent}>
-                    <div className={styles.cardText}>
-                      <Text weight="semibold">{journey.Title}</Text>
-                      <Text className={styles.description}>{journey.Description}</Text>
-                    </div>
-                    <ChevronRightRegular />
-                  </div>
-                }
+                header={<Subtitle2>{journey.Title}</Subtitle2>}
+                description={<Body1>{journey.Description}</Body1>}
               />
             </Card>
           ))}
-        </>
+        </div>
       )}
 
-      {isGalleryConfigured && (
-        <>
-          <Divider className={styles.divider} />
-          <Accordion collapsible>
-            <AccordionItem value="gallery">
-              <AccordionHeader>Browse gallery</AccordionHeader>
-              <AccordionPanel>
-                {loadingGallery ? (
-                  <Spinner size="small" label="Loading gallery..." />
-                ) : galleryJourneys.length === 0 ? (
-                  <Text className={styles.description}>No journeys available in gallery</Text>
-                ) : (
-                  galleryJourneys.map((gj) => (
-                    <div key={gj.Id} className={styles.galleryItem}>
-                      <div className={styles.cardText}>
-                        <Text weight="semibold">{gj.Title}</Text>
-                        <Text className={styles.description}>{gj.Description}</Text>
-                      </div>
-                      <Button
-                        icon={<ArrowDownloadRegular />}
-                        size="small"
-                        onClick={() => onImport(gj.Id)}
-                      >
-                        Import
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </AccordionPanel>
-            </AccordionItem>
-          </Accordion>
-        </>
+      <Divider />
+
+      <Card className={styles.createCard} onClick={onCreate}>
+        <CardHeader
+          header={<Subtitle2>+ Create a new journey</Subtitle2>}
+          description={<Body1>Build a custom journey with your own steps</Body1>}
+        />
+      </Card>
+
+      {hasGallery && galleryJourneys.length > 0 && (
+        <Accordion collapsible>
+          <AccordionItem value="gallery">
+            <AccordionHeader>Browse gallery ({galleryJourneys.length})</AccordionHeader>
+            <AccordionPanel>
+              {galleryJourneys.map(journey => (
+                <div key={journey.Id} className={styles.galleryRow}>
+                  <div>
+                    <Text weight="semibold">{journey.Title}</Text>
+                    <br />
+                    <Text size={200}>{journey.Description}</Text>
+                  </div>
+                  <Button
+                    appearance="outline"
+                    size="small"
+                    onClick={() => onImport(journey.Id)}
+                  >
+                    Import
+                  </Button>
+                </div>
+              ))}
+            </AccordionPanel>
+          </AccordionItem>
+        </Accordion>
+      )}
+
+      {journeys.length === 0 && (
+        <Text>No journey templates available. Create one above or contact your administrator.</Text>
       )}
     </div>
   );

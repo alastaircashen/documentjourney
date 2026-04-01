@@ -2,33 +2,24 @@ import * as React from 'react';
 import {
   Dialog,
   DialogSurface,
-  DialogTitle,
   DialogBody,
+  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
   Text,
   Badge,
-  makeStyles,
-  tokens,
   Spinner,
+  makeStyles,
+  tokens
 } from '@fluentui/react-components';
-import {
-  CheckmarkCircleRegular,
-  CircleRegular,
-  DismissCircleRegular,
-  PrintRegular,
-} from '@fluentui/react-icons';
-import { SPFI } from '@pnp/sp';
-import { JourneyService } from '../../../services/JourneyService';
-import { TenantPropertyService } from '../../../services/TenantPropertyService';
 import { IHistory } from '../../../models/IHistory';
 import { IStepHistory } from '../../../models/IStepHistory';
-import { StepStatus, STEP_TYPE_COLORS, StepType } from '../../../constants';
+import { StepStatus, StepType, STEP_TYPE_COLORS } from '../../../constants';
+import { useDocumentJourney } from '../../../common/DocumentJourneyContext';
 
 export interface IJourneyHistoryViewProps {
   history: IHistory;
-  sp: SPFI;
   onDismiss: () => void;
 }
 
@@ -36,160 +27,225 @@ const useStyles = makeStyles({
   timeline: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0',
-    padding: '16px 0',
+    gap: '0px',
+    paddingLeft: '8px',
+    paddingTop: '16px',
   },
-  timelineItem: {
+  stepRow: {
     display: 'flex',
+    alignItems: 'flex-start',
     gap: '12px',
-    position: 'relative',
   },
-  indicator: {
+  connector: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    minWidth: '24px',
+    width: '28px',
+    flexShrink: 0,
   },
-  completedIcon: {
-    color: tokens.colorPaletteGreenForeground1,
-    fontSize: '24px',
+  circleCompleted: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    backgroundColor: tokens.colorPaletteGreenBackground3,
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    flexShrink: 0,
   },
-  pendingIcon: {
+  circleRejected: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    backgroundColor: tokens.colorPaletteRedBackground3,
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    flexShrink: 0,
+  },
+  circlePending: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    backgroundColor: tokens.colorNeutralBackground4,
     color: tokens.colorNeutralForeground3,
-    fontSize: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    flexShrink: 0,
   },
-  rejectedIcon: {
-    color: tokens.colorPaletteRedForeground1,
-    fontSize: '24px',
-  },
-  solidLine: {
+  lineSolid: {
     width: '2px',
-    height: '32px',
-    backgroundColor: tokens.colorPaletteGreenBorder1,
+    height: '20px',
+    backgroundColor: tokens.colorPaletteGreenBackground3,
   },
-  dashedLine: {
+  lineDashed: {
     width: '2px',
-    height: '32px',
-    borderLeft: `2px dashed ${tokens.colorNeutralStroke1}`,
+    height: '20px',
+    borderLeftWidth: '2px',
+    borderLeftStyle: 'dashed',
+    borderLeftColor: tokens.colorNeutralStroke1,
   },
   stepContent: {
+    paddingBottom: '16px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
-    paddingBottom: '16px',
+    gap: '2px',
   },
-  stepHeader: {
+  meta: {
     display: 'flex',
     gap: '8px',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
-  meta: {
-    color: tokens.colorNeutralForeground2,
+  comments: {
+    fontStyle: 'italic',
+    color: tokens.colorNeutralForeground3,
+    paddingTop: '4px',
+  },
+  delegation: {
+    color: tokens.colorNeutralForeground3,
+    paddingTop: '2px',
     fontSize: '12px',
-  },
-  header: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  printButton: {
-    marginRight: 'auto',
   },
 });
 
-export const JourneyHistoryView: React.FC<IJourneyHistoryViewProps> = ({ history, sp, onDismiss }) => {
+export const JourneyHistoryView: React.FC<IJourneyHistoryViewProps> = ({ history, onDismiss }) => {
   const styles = useStyles();
+  const { journeyService } = useDocumentJourney();
   const [stepHistories, setStepHistories] = React.useState<IStepHistory[]>([]);
   const [loading, setLoading] = React.useState(true);
-
-  const tenantPropertyService = React.useMemo(() => new TenantPropertyService(sp), [sp]);
-  const journeyService = React.useMemo(() => new JourneyService(sp, tenantPropertyService), [sp, tenantPropertyService]);
 
   React.useEffect(() => {
     const load = async (): Promise<void> => {
       try {
-        const steps = await journeyService.getStepHistoryForJourney(history.Id);
+        const steps = await journeyService.getJourneyStepHistory(history.Id);
         setStepHistories(steps);
-      } finally {
-        setLoading(false);
+      } catch {
+        // Handle silently
       }
+      setLoading(false);
     };
-    load();
+    load().catch(() => {});
   }, [history.Id]);
 
-  const getStatusIcon = (status: StepStatus): React.ReactElement => {
-    switch (status) {
-      case StepStatus.Completed:
-        return <CheckmarkCircleRegular className={styles.completedIcon} />;
-      case StepStatus.Rejected:
-        return <DismissCircleRegular className={styles.rejectedIcon} />;
-      default:
-        return <CircleRegular className={styles.pendingIcon} />;
-    }
+  const getCircleClass = (status: StepStatus): string => {
+    if (status === StepStatus.Completed) return styles.circleCompleted;
+    if (status === StepStatus.Rejected) return styles.circleRejected;
+    return styles.circlePending;
   };
 
-  const getLine = (status: StepStatus): React.ReactElement => {
-    const isComplete = status === StepStatus.Completed;
-    return <div className={isComplete ? styles.solidLine : styles.dashedLine} />;
+  const getCircleIcon = (status: StepStatus): string => {
+    if (status === StepStatus.Completed) return '\u2713';
+    if (status === StepStatus.Rejected) return '\u2717';
+    return '\u25CB';
+  };
+
+  const handlePrint = (): void => {
+    const printWindow = window.open('', '_blank', 'width=700,height=900');
+    if (!printWindow) return;
+
+    const stepsHtml = stepHistories.map(sh => `
+      <div style="display:flex;gap:12px;margin-bottom:12px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:${sh.Status === 'Completed' ? '#107c10' : sh.Status === 'Rejected' ? '#d13438' : '#c8c8c8'};color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">
+          ${sh.Status === 'Completed' ? '&#10003;' : sh.Status === 'Rejected' ? '&#10007;' : '&#9675;'}
+        </div>
+        <div>
+          <div style="font-weight:600;">${sh.StepName}</div>
+          <div style="color:#666;font-size:13px;">${sh.StepType} &bull; ${sh.Status}${sh.ActionDate ? ' &bull; ' + new Date(sh.ActionDate).toLocaleString() : ''}</div>
+          ${sh.Comments ? '<div style="font-style:italic;color:#888;font-size:13px;">"' + sh.Comments + '"</div>' : ''}
+          ${sh.DelegatedFrom ? '<div style="color:#888;font-size:12px;">Delegated from original assignee</div>' : ''}
+        </div>
+      </div>
+    `).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${history.JourneyName} - ${history.DocumentName}</title>
+        <style>
+          body { font-family: 'Segoe UI', sans-serif; padding: 24px; color: #323130; }
+          h1 { font-size: 20px; margin-bottom: 4px; }
+          .meta { color: #605e5c; font-size: 13px; margin-bottom: 16px; }
+          .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #fff; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>${history.JourneyName}</h1>
+        <div class="meta">${history.DocumentName} &bull; Started ${new Date(history.InitiatedDate).toLocaleDateString()}${history.CompletedDate ? ' &bull; Ended ' + new Date(history.CompletedDate).toLocaleDateString() : ''}</div>
+        <div class="status" style="background:${history.Status === 'Completed' ? '#107c10' : history.Status === 'Rejected' ? '#d13438' : history.Status === 'Active' ? '#0078d4' : '#a19f9d'}">${history.Status}</div>
+        <hr style="margin:16px 0;border:none;border-top:1px solid #edebe9;">
+        ${stepsHtml}
+        <script>window.print();</script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (
-    <Dialog open onOpenChange={(_, { open }) => { if (!open) onDismiss(); }}>
-      <DialogSurface style={{ maxWidth: '640px' }}>
-        <DialogTitle>
-          <div className={styles.header}>
-            <Text weight="semibold" size={500}>{history.JourneyTitle}</Text>
-            <Text size={200} style={{ color: tokens.colorNeutralForeground2 }}>
-              {history.DocumentName}
-            </Text>
-          </div>
-        </DialogTitle>
+    <Dialog open={true} onOpenChange={() => onDismiss()}>
+      <DialogSurface style={{ maxWidth: '640px', width: '90vw' }}>
         <DialogBody>
+          <DialogTitle>{history.JourneyName} — {history.DocumentName}</DialogTitle>
           <DialogContent>
             {loading ? (
               <Spinner label="Loading history..." />
             ) : (
               <div className={styles.timeline}>
                 {stepHistories.map((sh, index) => (
-                  <div key={sh.Id} className={styles.timelineItem}>
-                    <div className={styles.indicator}>
-                      {getStatusIcon(sh.Status as StepStatus)}
-                      {index < stepHistories.length - 1 && getLine(sh.Status as StepStatus)}
-                    </div>
-                    <div className={styles.stepContent}>
-                      <div className={styles.stepHeader}>
-                        <Text weight="semibold">{sh.StepTitle}</Text>
-                        <Badge
-                          color={STEP_TYPE_COLORS[sh.StepType as StepType] as any}
-                          size="small"
-                        >
-                          {sh.StepType}
-                        </Badge>
-                        {sh.ActionType && (
-                          <Badge
-                            color={sh.ActionType === 'Rejected' ? 'danger' : 'success'}
-                            size="small"
-                          >
-                            {sh.ActionType}
-                          </Badge>
+                  <div key={sh.Id}>
+                    <div className={styles.stepRow}>
+                      <div className={styles.connector}>
+                        <div className={getCircleClass(sh.Status as StepStatus)}>
+                          {getCircleIcon(sh.Status as StepStatus)}
+                        </div>
+                        {index < stepHistories.length - 1 && (
+                          <div className={
+                            sh.Status === StepStatus.Completed ? styles.lineSolid : styles.lineDashed
+                          } />
                         )}
                       </div>
-                      {sh.ActionBy && (
-                        <Text className={styles.meta}>
-                          {sh.ActionBy} — {sh.ActionDate ? new Date(sh.ActionDate).toLocaleString() : ''}
-                        </Text>
-                      )}
-                      {sh.Comments && (
-                        <Text className={styles.meta} style={{ fontStyle: 'italic' }}>
-                          "{sh.Comments}"
-                        </Text>
-                      )}
-                      {sh.Status === StepStatus.Pending && (
-                        <Text className={styles.meta}>Pending</Text>
-                      )}
-                      {sh.Status === StepStatus.InProgress && (
-                        <Text className={styles.meta}>In progress — waiting for action</Text>
-                      )}
+                      <div className={styles.stepContent}>
+                        <Text weight="semibold">{sh.StepName}</Text>
+                        <div className={styles.meta}>
+                          <Badge
+                            appearance="filled"
+                            color={STEP_TYPE_COLORS[sh.StepType as StepType] as any}
+                            size="small"
+                          >
+                            {sh.StepType}
+                          </Badge>
+                          <Badge
+                            appearance="outline"
+                            size="small"
+                          >
+                            {sh.Status}
+                          </Badge>
+                          {sh.ActionDate && (
+                            <Text size={200}>
+                              {new Date(sh.ActionDate).toLocaleString()}
+                            </Text>
+                          )}
+                        </div>
+                        {sh.DelegatedFrom && (
+                          <Text size={200} className={styles.delegation}>
+                            Delegated from original assignee
+                          </Text>
+                        )}
+                        {sh.Comments && (
+                          <Text size={200} className={styles.comments}>
+                            "{sh.Comments}"
+                          </Text>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -197,15 +253,12 @@ export const JourneyHistoryView: React.FC<IJourneyHistoryViewProps> = ({ history
             )}
           </DialogContent>
           <DialogActions>
-            <Button
-              className={styles.printButton}
-              icon={<PrintRegular />}
-              appearance="secondary"
-              onClick={() => window.print()}
-            >
+            <Button appearance="secondary" onClick={handlePrint}>
               Print
             </Button>
-            <Button appearance="primary" onClick={onDismiss}>Close</Button>
+            <Button appearance="primary" onClick={onDismiss}>
+              Close
+            </Button>
           </DialogActions>
         </DialogBody>
       </DialogSurface>

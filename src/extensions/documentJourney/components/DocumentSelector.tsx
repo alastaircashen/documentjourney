@@ -5,13 +5,13 @@ import {
   makeStyles,
   tokens,
   Text,
+  Subtitle2
 } from '@fluentui/react-components';
-import { DocumentRegular } from '@fluentui/react-icons';
-import { SelectedDocument } from '../../../services/JourneyService';
+import { ISelectedDocument } from '../../../services/JourneyService';
 
 export interface IDocumentSelectorProps {
-  documents: SelectedDocument[];
-  onRemove: (docId: number) => void;
+  documents: ISelectedDocument[];
+  onRemove: (index: number) => void;
 }
 
 const useStyles = makeStyles({
@@ -25,10 +25,10 @@ const useStyles = makeStyles({
     flexWrap: 'wrap',
     gap: '6px',
   },
-  emptyState: {
+  empty: {
+    padding: '16px',
+    textAlign: 'center',
     color: tokens.colorNeutralForeground3,
-    fontStyle: 'italic',
-    padding: '12px 0',
   },
 });
 
@@ -37,21 +37,25 @@ export const DocumentSelector: React.FC<IDocumentSelectorProps> = ({ documents, 
 
   if (documents.length === 0) {
     return (
-      <div className={styles.container}>
-        <Text className={styles.emptyState}>Select documents from the library</Text>
+      <div className={styles.empty}>
+        <Text>Select documents from the library</Text>
       </div>
     );
   }
 
   return (
     <div className={styles.container}>
-      <TagGroup className={styles.tagGroup} onDismiss={(_e, { value }) => onRemove(Number(value))}>
-        {documents.map((doc) => (
+      <Subtitle2>Selected Documents</Subtitle2>
+      <TagGroup className={styles.tagGroup} onDismiss={(_e, data) => {
+        const index = documents.findIndex(d => d.name === data.value);
+        if (index >= 0) onRemove(index);
+      }}>
+        {documents.map((doc, index) => (
           <Tag
-            key={doc.id}
-            value={String(doc.id)}
+            key={index}
             dismissible
-            icon={<DocumentRegular />}
+            dismissIcon={{ 'aria-label': 'Remove' }}
+            value={doc.name}
           >
             {doc.name}
           </Tag>
